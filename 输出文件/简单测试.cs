@@ -11,8 +11,8 @@ namespace Generated_简单测试
     {
         public string 名称 { get; set; }
 
-        virtual string 获取信息();
-        virtual int 计算();
+        string 获取信息();
+        int 计算();
     }
 
 
@@ -22,16 +22,17 @@ namespace Generated_简单测试
         private int 计数 { get; set; }
 
         public 基础实现(string 名称)
-     : base(名称)
+
         {
             this.名称 = 名称;
+            this.计数 = 0;
         }
 
-        public override string 获取信息()
+        public string 获取信息()
         {
             return ("基础实现: " + 名称);
         }
-        public new int 计算()
+        public virtual int 计算()
         {
             this.计数 = (this.计数 + 1);
             return this.计数;
