@@ -28,7 +28,7 @@ namespace Generated_简单测试
             this.计数 = 0;
         }
 
-        public string 获取信息()
+        public virtual string 获取信息()
         {
             return ("基础实现: " + 名称);
         }

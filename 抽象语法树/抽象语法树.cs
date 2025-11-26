@@ -38,7 +38,7 @@ namespace CnToCs.抽象语法树
             this.是否为泛型=是否为泛型;
             if(泛型参数列表==null)
             {
-                泛型参数列表=new List<类型节点>();
+                this.泛型参数列表=new List<类型节点>();
             }
             else
             {
@@ -126,7 +126,8 @@ namespace CnToCs.抽象语法树
     {
         public List<参数节点>参数列表{get;}
         public 方法体节点? 方法体{get;}
-        public 构造函数节点(List<参数节点> 参数列表 = null, 方法体节点? 方法体 = null)
+        public string? 基类构造函数调用{get;}
+        public 构造函数节点(List<参数节点> 参数列表 = null, 方法体节点? 方法体 = null, string? 基类构造函数调用 = null)
         {
             if (参数列表 == null)
             {
@@ -137,6 +138,7 @@ namespace CnToCs.抽象语法树
                 this.参数列表 = 参数列表;
             }
             this.方法体 = 方法体;
+            this.基类构造函数调用 = 基类构造函数调用;
         }
     }
     /// <summary>
