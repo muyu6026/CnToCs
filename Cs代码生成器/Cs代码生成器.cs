@@ -7,6 +7,8 @@ using System.IO;
 // 引入泛型集合命名空间
 using System.Collections.Generic;
 // 引入AST命名空间，访问抽象语法树相关节点
+// 引入System命名空间，用于StringSplitOptions
+using System;
 using CnToCs.抽象语法树;
 
 // 定义代码生成器相关的命名空间
@@ -17,6 +19,9 @@ namespace CnToCs.Cs代码生成器
     /// </summary>
     public class Cs代码生成器
     {
+        // 存储整个AST的根节点，用于查找接口定义
+        private 根节点 全局AST根节点;
+        
         /// <summary>
         /// 生成C#代码的主方法，根据不同AST节点类型生成对应代码
         /// </summary>
@@ -24,7 +29,7 @@ namespace CnToCs.Cs代码生成器
         /// <returns>生成的C#代码字符串</returns>
         public string 生成代码(语法树节点 节点)
         {
-            return 生成代码(节点, null);
+            return 生成代码(节点, null, null, null, null, null);
         }
 
         /// <summary>
@@ -32,19 +37,36 @@ namespace CnToCs.Cs代码生成器
         /// </summary>
         /// <param name="节点">AST节点</param>
         /// <param name="输入文件路径">输入文件路径，用于生成唯一命名空间</param>
+        /// <param name="注释列表">注释列表</param>
         /// <returns>生成的C#代码字符串</returns>
-        public string 生成代码(语法树节点 节点, string 输入文件路径)
+        public string 生成代码(语法树节点 节点, string 输入文件路径, List<string> 注释列表)
+        {
+            return 生成代码(节点, 输入文件路径, 注释列表, null, null, null);
+        }
+        
+        /// <summary>
+        /// 生成C#代码的主方法，根据不同AST节点类型生成对应代码
+        /// </summary>
+        /// <param name="节点">AST节点</param>
+        /// <param name="输入文件路径">输入文件路径，用于生成唯一命名空间</param>
+        /// <param name="注释列表">注释列表</param>
+        /// <param name="节点注释映射">节点注释映射</param>
+        /// <returns>生成的C#代码字符串</returns>
+        public string 生成代码(语法树节点 节点, string 输入文件路径, List<string> 注释列表, Dictionary<string, List<string>> 节点注释映射, Dictionary<string, List<string>> 属性注释映射, Dictionary<string, List<string>> 方法注释映射)
         {
             // 用于拼接生成的C#代码
             var 代码构建器 = new StringBuilder();
             
-            // 如果节点是根节点，递归生成所有子节点的代码
-            if (节点 is 根节点 根节点)
+            // 如果节点是根节点，保存它以供后续查找接口使用，并递归生成所有子节点的代码
+            if (节点 is 根节点 当前根节点)
             {
+                全局AST根节点 = 当前根节点;
                 // 添加文件头部注释
                 代码构建器.AppendLine("// 此文件由中文转C#编译器自动生成");
                 代码构建器.AppendLine("// 请勿手动修改此文件");
                 代码构建器.AppendLine();
+                
+                // 不再在文件开头显示所有注释，而是在对应的位置显示
                 
                 // 生成基于文件名的命名空间
                 string 命名空间 = "GeneratedCode";
@@ -78,10 +100,10 @@ namespace CnToCs.Cs代码生成器
                 代码构建器.AppendLine();
                 
                 // 遍历根节点下的所有子节点
-                foreach (var 子节点 in 根节点.子节点列表)
+                foreach (var 子节点 in 当前根节点.子节点列表)
                 {
-                    // 递归生成子节点代码并换行
-                    string 子节点代码 = 生成代码(子节点, 输入文件路径);
+                    // 递归生成子节点代码并换行，传递注释映射
+                    string 子节点代码 = 生成代码(子节点, 输入文件路径, 注释列表, 节点注释映射, 属性注释映射, 方法注释映射);
                     // 为子节点的每一行添加缩进
                     var 缩进后的代码 = new StringBuilder();
                     foreach (var 行 in 子节点代码.Split('\n'))
@@ -106,6 +128,16 @@ namespace CnToCs.Cs代码生成器
             // 如果节点是接口节点，生成C#接口代码
             else if (节点 is 接口节点 接口节点)
             {
+                // 添加接口注释
+                if (节点注释映射 != null && 节点注释映射.ContainsKey(接口节点.名称))
+                {
+                    foreach (var 注释 in 节点注释映射[接口节点.名称])
+                    {
+                        var CSharp注释 = 转换注释为CSharp注释(注释);
+                        代码构建器.AppendLine(CSharp注释);
+                    }
+                }
+                
                 // 输出接口声明行，如果有基接口则添加继承关系
                 if (接口节点.基接口列表 != null && 接口节点.基接口列表.Count > 0)
                 {
@@ -120,6 +152,20 @@ namespace CnToCs.Cs代码生成器
                 // 遍历接口的所有属性，生成属性声明
                 foreach (var 属性 in 接口节点.属性列表)
                 {
+                    // 添加属性注释
+                    if (属性注释映射 != null)
+                    {
+                        string 属性键 = $"{接口节点.名称}.{属性.名称}";
+                        if (属性注释映射.ContainsKey(属性键))
+                        {
+                            foreach (var 注释 in 属性注释映射[属性键])
+                            {
+                                var CSharp注释 = 转换注释为CSharp注释(注释);
+                                代码构建器.AppendLine(CSharp注释);
+                            }
+                        }
+                    }
+                    
                     // 输出属性名、可空标记和类型
                     var 属性声明 = $"    {属性.修饰符} {属性.类型.类型名称}{(属性.是否可为空 ? "?" : "")} {属性.名称} {{ get; set; }}";
                     
@@ -136,14 +182,27 @@ namespace CnToCs.Cs代码生成器
                 // 如果有方法，生成方法声明
                 if (接口节点.方法列表.Count > 0)
                 {
-                    代码构建器.AppendLine();
                     foreach (var 方法 in 接口节点.方法列表)
                     {
+                        // 添加方法注释
+                        if (方法注释映射 != null)
+                        {
+                            string 方法键 = $"{接口节点.名称}.{方法.名称}";
+                            if (方法注释映射.ContainsKey(方法键))
+                            {
+                                foreach (var 注释 in 方法注释映射[方法键])
+                                {
+                                    var CSharp注释 = 转换注释为CSharp注释(注释);
+                                    代码构建器.AppendLine(CSharp注释);
+                                }
+                            }
+                        }
+                        
                         // 生成方法参数列表
                         var 参数列表 = string.Join(", ", 方法.参数列表.Select(p => $"{p.参数类型.类型名称}{(p.是否可为空 ? "?" : "")} {p.参数名称}"));
                         
                         // 生成方法声明，接口中的方法默认为抽象方法
-                        代码构建器.AppendLine($"    {方法.返回类型} {方法.名称}({参数列表});");
+                        代码构建器.AppendLine($"    {方法.返回类型.类型名称} {方法.名称}({参数列表});");
                     }
                 }
                 
@@ -153,6 +212,16 @@ namespace CnToCs.Cs代码生成器
             // 如果节点是类节点，生成C#类代码
             else if (节点 is 类节点 类节点)
             {
+                // 添加类注释
+                if (节点注释映射 != null && 节点注释映射.ContainsKey(类节点.名称))
+                {
+                    foreach (var 注释 in 节点注释映射[类节点.名称])
+                    {
+                        var CSharp注释 = 转换注释为CSharp注释(注释);
+                        代码构建器.AppendLine(CSharp注释);
+                    }
+                }
+                
                 // 输出类声明行，如果有基类则添加继承关系
                 var 继承列表 = new List<string>();
                 if (!string.IsNullOrEmpty(类节点.基类名称))
@@ -177,6 +246,20 @@ namespace CnToCs.Cs代码生成器
                 // 遍历类的所有属性，生成属性声明
                 foreach (var 属性 in 类节点.属性列表)
                 {
+                    // 添加属性注释
+                    if (属性注释映射 != null)
+                    {
+                        string 属性键 = $"{类节点.名称}.{属性.名称}";
+                        if (属性注释映射.ContainsKey(属性键))
+                        {
+                            foreach (var 注释 in 属性注释映射[属性键])
+                            {
+                                var CSharp注释 = 转换注释为CSharp注释(注释);
+                                代码构建器.AppendLine(CSharp注释);
+                            }
+                        }
+                    }
+                    
                     // 输出属性名、可空标记和类型
                     var 修饰符 = 属性.修饰符;
                     // readonly不能用于属性，只能用于字段
@@ -194,6 +277,36 @@ namespace CnToCs.Cs代码生成器
                     }
                     
                     代码构建器.AppendLine(属性声明);
+                }
+                
+                // 检查是否需要实现接口属性
+                if (!string.IsNullOrEmpty(类节点.基类名称) && 类节点.基类名称.StartsWith("I"))
+                {
+                    // 查找接口定义
+                    var 接口定义节点 = 查找接口节点(类节点.基类名称);
+                    if (接口定义节点 != null)
+                    {
+                        // 为接口中的每个属性生成实现
+                        foreach (var 属性 in 接口定义节点.属性列表)
+                        {
+                            // 检查类是否已经有这个属性
+                            bool 已存在 = false;
+                            foreach (var 类属性 in 类节点.属性列表)
+                            {
+                                if (类属性.名称 == 属性.名称)
+                                {
+                                    已存在 = true;
+                                    break;
+                                }
+                            }
+                            
+                            if (!已存在)
+                            {
+                                var 属性声明 = $"    public {属性.类型.类型名称}{(属性.是否可为空 ? "?" : "")} {属性.名称} {{ get; set; }}";
+                                代码构建器.AppendLine(属性声明);
+                            }
+                        }
+                    }
                 }
 
                 // 如果有构造函数，生成构造函数
@@ -312,6 +425,20 @@ namespace CnToCs.Cs代码生成器
                     代码构建器.AppendLine();
                     foreach (var 方法 in 类节点.方法列表)
                     {
+                        // 添加方法注释
+                        if (方法注释映射 != null)
+                        {
+                            string 方法键 = $"{类节点.名称}.{方法.名称}";
+                            if (方法注释映射.ContainsKey(方法键))
+                            {
+                                foreach (var 注释 in 方法注释映射[方法键])
+                                {
+                                    var CSharp注释 = 转换注释为CSharp注释(注释);
+                                    代码构建器.AppendLine(CSharp注释);
+                                }
+                            }
+                        }
+                        
                         // 生成方法参数列表
                         var 参数列表 = string.Join(", ", 方法.参数列表.Select(p => $"{p.参数类型.类型名称}{(p.是否可为空 ? "?" : "")} {p.参数名称}"));
                         
@@ -354,10 +481,12 @@ namespace CnToCs.Cs代码生成器
                                 是接口方法实现 = true;
                             }
                             
-                            if (!是接口方法实现)
+                            // 只有当方法名可能与基类中的方法冲突时才添加new关键字
+                            // 这里简化处理：只有虚方法和重写方法才可能与基类方法冲突
+                            if (!是接口方法实现 && !方法.是否为虚方法 && !方法.是否为重写方法)
                             {
-                                // 如果有基类但方法不是虚方法，且不是接口方法实现，添加new关键字避免隐藏警告
-                                代码构建器.Append("new ");
+                                // 对于普通方法，不添加new关键字，除非确实需要
+                                // 这里暂时不添加new关键字，让编译器决定是否需要
                             }
                         }
                         else if (方法.是否为虚方法)
@@ -375,7 +504,7 @@ namespace CnToCs.Cs代码生成器
                             代码构建器.Append("virtual ");
                         }
                         
-                        代码构建器.Append($"{方法.返回类型} {方法.名称}({参数列表})");
+                        代码构建器.Append($"{方法.返回类型.类型名称} {方法.名称}({参数列表})");
                         
                         // 如果是抽象方法，直接结束声明，不添加方法体
                         if (方法.是否为抽象方法)
@@ -402,23 +531,23 @@ namespace CnToCs.Cs代码生成器
                         else
                         {
                             // 如果返回类型不是void，添加默认返回语句
-                            if (方法.返回类型 != "void")
+                            if (方法.返回类型.类型名称 != "void")
                             {
-                                if (方法.返回类型 == "string")
+                                if (方法.返回类型.类型名称 == "string")
                                 {
                                     代码构建器.AppendLine($"        return string.Empty;");
                                 }
-                                else if (方法.返回类型 == "int" || 方法.返回类型 == "double")
+                                else if (方法.返回类型.类型名称 == "int" || 方法.返回类型.类型名称 == "double")
                                 {
                                     代码构建器.AppendLine($"        return 0;");
                                 }
-                                else if (方法.返回类型 == "bool")
+                                else if (方法.返回类型.类型名称 == "bool")
                                 {
                                     代码构建器.AppendLine($"        return false;");
                                 }
                                 else
                                 {
-                                    代码构建器.AppendLine($"        return default({方法.返回类型});");
+                                    代码构建器.AppendLine($"        return default({方法.返回类型.类型名称});");
                                 }
                             }
                             else
@@ -535,6 +664,18 @@ namespace CnToCs.Cs代码生成器
                     return $"{赋值语句.左侧} = {右侧代码};";
                 }
             }
+            else if (语句 is 变量声明语句节点 变量声明)
+            {
+                // 使用var而不是具体类型
+                var 初始化代码 = "";
+                
+                if (变量声明.初始化表达式 != null)
+                {
+                    初始化代码 = $" = {生成表达式代码(变量声明.初始化表达式)}";
+                }
+                
+                return $"var {变量声明.变量名}{初始化代码};";
+            }
             else if (语句 is 如果语句节点 如果语句)
             {
                 return 生成如果语句代码(如果语句);
@@ -589,6 +730,102 @@ namespace CnToCs.Cs代码生成器
             }
             
             return 代码构建器.ToString();
+        }
+        
+        /// <summary>
+        /// 查找接口节点
+        /// </summary>
+        /// <param name="接口名称">接口名称</param>
+        /// <returns>接口节点，如果未找到则返回null</returns>
+        private 接口节点 查找接口节点(string 接口名称)
+        {
+            // 如果没有保存的AST根节点，返回null
+            if (全局AST根节点 == null)
+            {
+                return null;
+            }
+            
+            // 遍历AST中的所有节点，查找指定名称的接口
+            return 在节点中查找接口(全局AST根节点, 接口名称);
+        }
+        
+        /// <summary>
+        /// 将注释转换为C#注释
+        /// </summary>
+        /// <param name="注释内容">注释内容</param>
+        /// <returns>C#格式的注释</returns>
+        private string 转换注释为CSharp注释(string 注释内容)
+        {
+            if (string.IsNullOrEmpty(注释内容))
+            {
+                return "";
+            }
+            
+            // 清理注释内容，移除可能的多余字符
+            var 清理后 = 注释内容.Trim();
+            
+            // 如果注释内容已经包含//或/* */，则直接返回
+            if (清理后.StartsWith("//") || 清理后.StartsWith("/*"))
+            {
+                return 清理后;
+            }
+            
+            // 处理多行注释（以*开头的内容）
+            if (清理后.StartsWith("*"))
+            {
+                // 移除开头的*，并处理每一行
+                var 行列表 = 清理后.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                var 结果 = new StringBuilder();
+                结果.AppendLine("    /**");
+                foreach (var 行 in 行列表)
+                {
+                    var 清理行 = 行.Trim();
+                    if (清理行.StartsWith("*"))
+                    {
+                        清理行 = 清理行.Substring(1).Trim();
+                    }
+                    if (!string.IsNullOrEmpty(清理行))
+                    {
+                        结果.AppendLine($"     * {清理行}");
+                    }
+                }
+                结果.AppendLine("     */");
+                return 结果.ToString();
+            }
+            
+            // 否则添加//前缀
+            return $"    // {清理后}";
+        }
+        
+        /// <summary>
+        /// 在指定节点及其子节点中递归查找接口
+        /// </summary>
+        /// <param name="节点">要搜索的节点</param>
+        /// <param name="接口名称">要查找的接口名称</param>
+        /// <returns>找到的接口节点，如果未找到则返回null</returns>
+        private 接口节点 在节点中查找接口(语法树节点 节点, string 接口名称)
+        {
+            // 如果当前节点是接口节点且名称匹配，返回该节点
+            if (节点 is 接口节点 接口节点 && 接口节点.名称 == 接口名称)
+            {
+                return 接口节点;
+            }
+            
+            // 如果当前节点是根节点，递归搜索其子节点
+            if (节点 is 根节点 根节点)
+            {
+                foreach (var 子节点 in 根节点.子节点列表)
+                {
+                    var 找到的接口 = 在节点中查找接口(子节点, 接口名称);
+                    if (找到的接口 != null)
+                    {
+                        return 找到的接口;
+                    }
+                }
+            }
+            
+            // 未找到匹配的接口
+            return null;
         }
     }
 }

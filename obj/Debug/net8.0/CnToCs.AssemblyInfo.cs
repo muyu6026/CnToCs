@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("CnToCs")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+973c1cf0069dae9d56432bce6b42e8dbc8930d8a")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cfb574d0f5225e06aaed7dc2694899cdb993f188")]
 [assembly: System.Reflection.AssemblyProductAttribute("CnToCs")]
 [assembly: System.Reflection.AssemblyTitleAttribute("CnToCs")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

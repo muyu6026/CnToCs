@@ -143,7 +143,34 @@ namespace CnToCs
                     Console.WriteLine("抽象语法树为空，无法生成C#代码！");
                     return string.Empty;
                 }
-                var 生成的代码 = 代码生成器.生成代码(抽象语法树, 输入文件路径);
+                
+                // 获取语法分析器中的注释列表和节点注释映射
+                var 注释列表 = 语法分析器实例.获取注释列表();
+                var 节点注释映射 = 语法分析器实例.获取节点注释映射();
+                var 属性注释映射 = 语法分析器实例.获取属性注释映射();
+                var 方法注释映射 = 语法分析器实例.获取方法注释映射();
+                
+                Console.WriteLine($"注释列表数量: {注释列表.Count}");
+                Console.WriteLine($"节点注释映射数量: {节点注释映射.Count}");
+                Console.WriteLine($"属性注释映射数量: {属性注释映射.Count}");
+                Console.WriteLine($"方法注释映射数量: {方法注释映射.Count}");
+                
+                foreach (var 映射 in 节点注释映射)
+                {
+                    Console.WriteLine($"节点 {映射.Key} 有 {映射.Value.Count} 个注释");
+                }
+                
+                foreach (var 映射 in 属性注释映射)
+                {
+                    Console.WriteLine($"属性 {映射.Key} 有 {映射.Value.Count} 个注释");
+                }
+                
+                foreach (var 映射 in 方法注释映射)
+                {
+                    Console.WriteLine($"方法 {映射.Key} 有 {映射.Value.Count} 个注释");
+                }
+                
+                var 生成的代码 = 代码生成器.生成代码(抽象语法树, 输入文件路径, 注释列表, 节点注释映射, 属性注释映射, 方法注释映射);
                 Console.WriteLine("C#代码生成完成");
                 Console.WriteLine("生成的C#代码预览：\n" + 生成的代码);
                 return 生成的代码;

@@ -93,7 +93,7 @@ namespace CnToCs.抽象语法树
     public class 方法节点 : 语法树节点
     {
         public string 名称{get;}
-        public string 返回类型{get;}
+        public 类型节点 返回类型{get;}
         public bool 是否为虚方法{get;}
         public bool 是否为抽象方法{get;}
         public bool 是否为重写方法{get;}
@@ -104,7 +104,7 @@ namespace CnToCs.抽象语法树
         public 方法节点(string 函数名称, 类型节点 返回类型, List<参数节点> 参数列表 = null, bool 是否为虚方法 = false, bool 是否为抽象方法 = false, bool 是否为重写方法 = false, 方法体节点? 方法体 = null)
         {
             this.名称 = 函数名称;
-            this.返回类型 = 返回类型?.类型名称 ?? "void";
+            this.返回类型 = 返回类型 ?? new 类型节点("void");
             if (参数列表 == null)
             {
                 this.参数列表 = new List<参数节点>();
@@ -315,6 +315,23 @@ namespace CnToCs.抽象语法树
         {
             this.左侧 = 左侧;
             this.右侧 = 右侧;
+        }
+    }
+
+    /// <summary>
+    /// 变量声明语句节点
+    /// </summary>
+    public class 变量声明语句节点 : 语句节点
+    {
+        public string 变量名 { get; }
+        public 类型节点 变量类型 { get; }
+        public 表达式节点? 初始化表达式 { get; }
+        
+        public 变量声明语句节点(string 变量名, 类型节点 变量类型, 表达式节点? 初始化表达式 = null)
+        {
+            this.变量名 = 变量名;
+            this.变量类型 = 变量类型;
+            this.初始化表达式 = 初始化表达式;
         }
     }
 

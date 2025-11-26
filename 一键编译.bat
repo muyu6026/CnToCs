@@ -13,6 +13,13 @@ cd /d "%~dp0"
 echo 当前工作目录: %CD%
 echo.
 
+:: 创建输出目录并清空其中的文件
+if not exist "输出文件" mkdir "输出文件"
+echo 正在清空输出目录...
+if exist "输出文件\*.cs" del /q "输出文件\*.cs"
+echo 输出目录已清空。
+echo.
+
 :: 编译项目
 echo 正在编译项目...
 dotnet build
@@ -23,9 +30,6 @@ if %errorlevel% neq 0 (
 )
 echo 项目编译成功！
 echo.
-
-:: 创建输出目录
-if not exist "输出文件" mkdir "输出文件"
 
 :: 遍历并编译所有.My文件
 echo 开始遍历并编译所有.My文件...
